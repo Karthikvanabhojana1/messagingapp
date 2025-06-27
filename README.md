@@ -10,6 +10,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 ## ✨ Features
 
 ### 🔐 **Security & Authentication**
+
 - **End-to-End Encryption**: All messages encrypted with AES-256
 - **JWT Authentication**: Secure token-based authentication
 - **Password Hashing**: Bcrypt password security
@@ -17,6 +18,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Two-Factor Authentication**: Ready for 2FA implementation
 
 ### 💬 **Messaging Features**
+
 - **Real-time Messaging**: Instant message delivery via Socket.IO
 - **Message Types**: Text, images, videos, audio, documents, locations
 - **Message Status**: Sent, delivered, read receipts
@@ -28,6 +30,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Message Deletion**: Delete messages with auto-delete options
 
 ### 👥 **Chat Types**
+
 - **Direct Messages**: One-on-one conversations
 - **Group Chats**: Multi-user conversations (up to 256 members)
 - **Channels**: Broadcast messages to subscribers
@@ -35,6 +38,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Public Channels**: Discoverable channels
 
 ### 📱 **User Interface**
+
 - **Modern Design**: Clean, responsive UI inspired by WhatsApp/Telegram
 - **Dark Mode**: Toggle between light and dark themes
 - **Tab Navigation**: Separate tabs for chats, groups, channels, calls
@@ -42,6 +46,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Responsive Design**: Works on desktop, tablet, and mobile
 
 ### 📸 **Stories & Status**
+
 - **Story Creation**: Create text, image, and video stories
 - **Story Viewing**: View stories from contacts
 - **Story Expiration**: Stories automatically expire after 24 hours
@@ -49,12 +54,14 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Story Reactions**: React to stories
 
 ### 📞 **Voice & Video Calls**
+
 - **Voice Calls**: Make and receive voice calls
 - **Video Calls**: High-quality video calling
 - **Call History**: Track call history and duration
 - **Call Status**: Missed, answered, ended call tracking
 
 ### 📎 **File Sharing**
+
 - **Image Sharing**: Share photos with preview
 - **Video Sharing**: Share videos with thumbnails
 - **Audio Sharing**: Share voice messages and audio files
@@ -64,6 +71,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Sticker Support**: Send and receive stickers
 
 ### 👤 **User Profiles**
+
 - **Profile Management**: Edit profile information
 - **Avatar Support**: Custom profile pictures
 - **Status Updates**: Custom status messages
@@ -71,6 +79,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Last Seen**: Track when users were last active
 
 ### ⚙️ **Settings & Customization**
+
 - **Notification Settings**: Customize notification preferences
 - **Privacy Settings**: Control message previews and read receipts
 - **Auto-lock**: Automatic app locking for security
@@ -78,6 +87,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Language Support**: Multi-language interface ready
 
 ### 🔍 **Advanced Features**
+
 - **Message Search**: Search through message history
 - **Contact Management**: Add, remove, and block contacts
 - **Group Management**: Create, join, and manage groups
@@ -88,6 +98,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 ## 🛠️ Technology Stack
 
 ### Backend
+
 - **Node.js**: Server-side JavaScript runtime
 - **Express.js**: Web application framework
 - **Socket.IO**: Real-time bidirectional communication
@@ -98,6 +109,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Multer**: File upload handling
 
 ### Frontend
+
 - **HTML5**: Semantic markup
 - **CSS3**: Modern styling with Flexbox and Grid
 - **JavaScript (ES6+)**: Modern JavaScript features
@@ -105,6 +117,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Socket.IO Client**: Real-time communication
 
 ### Security
+
 - **AES-256**: Message encryption
 - **JWT**: Secure authentication
 - **Bcrypt**: Password security
@@ -115,35 +128,41 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - npm or yarn
 - Git
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd messagingapp
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp env.example .env
    # Edit .env file to customize configuration
    ```
 
 4. **Initialize the database**
+
    ```bash
    node scripts/init-database.js
    ```
 
 5. **Start the development server**
+
    ```bash
    npm run dev
    ```
@@ -191,15 +210,16 @@ SAMPLE_CONTACTS=[...] # JSON array of sample contacts
 ```
 
 ### Sample Users
+
 The database comes with sample users configured via environment variables:
 
-| Username | Password | Full Name |
-|----------|----------|-----------|
-| `john_doe` | `password123` | John Doe |
-| `jane_smith` | `password123` | Jane Smith |
+| Username       | Password      | Full Name    |
+| -------------- | ------------- | ------------ |
+| `john_doe`     | `password123` | John Doe     |
+| `jane_smith`   | `password123` | Jane Smith   |
 | `mike_johnson` | `password123` | Mike Johnson |
 | `sarah_wilson` | `password123` | Sarah Wilson |
-| `alex_brown` | `password123` | Alex Brown |
+| `alex_brown`   | `password123` | Alex Brown   |
 
 **To customize users:** Edit the `SAMPLE_USERS` array in your `.env` file.
 
@@ -227,6 +247,7 @@ messagingapp/
 ## 🔧 Configuration
 
 ### Environment Variables
+
 The app uses environment variables for all configuration. Copy `env.example` to `.env` and customize:
 
 ```env
@@ -263,9 +284,11 @@ SAMPLE_CONTACTS=[...] # JSON array of sample contacts
 ```
 
 ### Database Configuration
+
 The app uses SQLite by default. The database file is created automatically in the `database/` directory.
 
 ### Sample Data Management
+
 - **Enable/Disable**: Set `CREATE_SAMPLE_DATA=true/false`
 - **Customize Users**: Edit the `SAMPLE_USERS` JSON array
 - **Customize Groups**: Edit the `SAMPLE_GROUPS` JSON array
@@ -278,6 +301,7 @@ See `env.example` for complete configuration examples.
 ## 📱 Usage Guide
 
 ### Getting Started
+
 1. **Register/Login**: Create a new account or use the test credentials
 2. **Add Contacts**: Start conversations with other users
 3. **Create Groups**: Invite multiple users to group chats
@@ -286,12 +310,14 @@ See `env.example` for complete configuration examples.
 6. **Create Stories**: Share moments with your contacts
 
 ### Navigation
+
 - **Chats Tab**: View and manage direct conversations
 - **Groups Tab**: Access group chats and create new groups
 - **Channels Tab**: Browse and subscribe to channels
 - **Calls Tab**: View call history and make new calls
 
 ### Messaging
+
 - **Send Messages**: Type and press Enter or click send
 - **Attach Files**: Use the paperclip icon to share media
 - **Use Emojis**: Click the smiley icon for emoji picker
@@ -299,6 +325,7 @@ See `env.example` for complete configuration examples.
 - **React to Messages**: Add emoji reactions
 
 ### Settings
+
 - **Profile**: Click your avatar to access profile settings
 - **Theme**: Toggle between light and dark modes
 - **Notifications**: Customize notification preferences
@@ -307,16 +334,19 @@ See `env.example` for complete configuration examples.
 ## 🔒 Security Features
 
 ### Message Encryption
+
 - All messages are encrypted using AES-256 encryption
 - Encryption keys are unique per user
 - Messages are decrypted only on the recipient's device
 
 ### Authentication
+
 - JWT tokens for secure authentication
 - Token expiration and refresh mechanisms
 - Secure password hashing with bcrypt
 
 ### Privacy
+
 - End-to-end encryption for all communications
 - No message content stored in plain text
 - User sessions with automatic expiration
@@ -325,6 +355,7 @@ See `env.example` for complete configuration examples.
 ## 🚀 Deployment
 
 ### Production Setup
+
 1. **Set environment variables** for production
 2. **Use a production database** (PostgreSQL, MySQL)
 3. **Enable HTTPS** with SSL certificates
@@ -332,6 +363,7 @@ See `env.example` for complete configuration examples.
 5. **Configure PM2** for process management
 
 ### Docker Deployment
+
 ```bash
 # Build the image
 docker build -t securechat .
@@ -363,6 +395,7 @@ If you encounter any issues or have questions:
 ## 🔮 Roadmap
 
 ### Upcoming Features
+
 - [ ] **Video Calls**: WebRTC video calling
 - [ ] **Voice Messages**: Audio message recording
 - [ ] **Message Pinning**: Pin important messages
@@ -375,6 +408,7 @@ If you encounter any issues or have questions:
 - [ ] **Mobile App**: React Native mobile application
 
 ### Performance Improvements
+
 - [ ] **Message Pagination**: Efficient message loading
 - [ ] **File Compression**: Optimize media file sizes
 - [ ] **Caching**: Redis caching for better performance
@@ -393,4 +427,4 @@ If you encounter any issues or have questions:
 
 **Made with ❤️ for secure communication**
 
-*This project is for educational purposes and demonstrates modern web development practices with a focus on security and user experience.* 
+_This project is for educational purposes and demonstrates modern web development practices with a focus on security and user experience._
