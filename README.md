@@ -397,6 +397,7 @@ If you encounter any issues or have questions:
 ### Upcoming Features
 
 - [ ] **Video Calls**: WebRTC video calling
+- [ ] **Sending Files**: End to end Encrypted files still testing it
 - [ ] **Voice Messages**: Audio message recording
 - [ ] **Message Pinning**: Pin important messages
 - [ ] **Message Translation**: Multi-language message translation
@@ -421,10 +422,8 @@ If you encounter any issues or have questions:
 - **Telegram** for channel and group concepts
 - **Socket.IO** for real-time communication
 - **Font Awesome** for beautiful icons
-- **Open source community** for amazing tools and libraries
 
 ---
 
-**Made with ❤️ for secure communication**
 
 _This project is for educational purposes and demonstrates modern web development practices with a focus on security and user experience._
