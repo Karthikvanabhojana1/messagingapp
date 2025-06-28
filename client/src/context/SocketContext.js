@@ -23,7 +23,7 @@ export const SocketProvider = ({ children }) => {
       console.log('Attempting to connect to Socket.IO server...');
       
       // Connect to Socket.IO server
-      const newSocket = io('/', {
+      const newSocket = io('http://localhost:3002', {
         auth: {
           token: token
         },

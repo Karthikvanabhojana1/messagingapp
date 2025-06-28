@@ -14,7 +14,6 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const config = require('./config');
 
@@ -80,42 +79,6 @@ app.use(session({
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-        const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
-        cb(null, uniqueName);
-    }
-});
-
-const upload = multer({ 
-    storage: storage,
-    limits: {
-        fileSize: 50 * 1024 * 1024 // 50MB limit for larger files
-    },
-    fileFilter: function (req, file, cb) {
-        // Allow a wide range of file types
-        const allowedTypes = /jpeg|jpg|png|gif|bmp|webp|svg|mp4|avi|mov|wmv|flv|mkv|webm|mp3|wav|ogg|m4a|aac|flac|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf|csv|zip|rar|7z|json|xml|html|css|js|py|java|cpp|c|php|sql|md|log|ini|conf|sh|bat|ps1|exe|dmg|deb|rpm|apk|ipa/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        
-        if (mimetype && extname) {
-            return cb(null, true);
-        } else {
-            cb(new Error('File type not allowed. Please check the supported formats.'));
-        }
-    }
-});
-
 // Database initialization
 const db = new sqlite3.Database(config.dbPath, (err) => {
     if (err) {
@@ -148,9 +111,6 @@ function initializeDatabase() {
             receiver_id INTEGER NOT NULL,
             encrypted_content TEXT NOT NULL,
             message_type TEXT DEFAULT 'text',
-            file_name TEXT,
-            file_data BLOB,
-            file_mime_type TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             is_read BOOLEAN DEFAULT 0,
             FOREIGN KEY (sender_id) REFERENCES users (id),
@@ -431,23 +391,12 @@ app.get('/api/messages/:userId', authenticateToken, (req, res) => {
             return res.status(500).json({ error: 'Database error' });
         }
 
-        // Decrypt messages and add file_name if it exists
+        // Decrypt messages
         const decryptedMessages = messages.map(msg => {
-            const decryptedMsg = {
+            return {
                 ...msg,
                 content: decryptMessage(msg.encrypted_content)
             };
-            
-            // For file messages, try to extract file name from content if not already present
-            if (msg.message_type !== 'text' && !decryptedMsg.file_name) {
-                // Extract filename from the URL path
-                const urlParts = decryptedMsg.content.split('/');
-                if (urlParts.length > 0) {
-                    decryptedMsg.file_name = urlParts[urlParts.length - 1];
-                }
-            }
-            
-            return decryptedMsg;
         });
 
         res.json({ messages: decryptedMessages });
@@ -468,9 +417,9 @@ app.post('/api/messages', authenticateToken, (req, res) => {
     const timestamp = new Date().toISOString();
 
     db.run(`
-        INSERT INTO messages (sender_id, receiver_id, encrypted_content, message_type, file_name, file_data, file_mime_type, file_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [senderId, receiverId, encryptedContent, messageType, null, null, null, null, timestamp], function(err) {
+        INSERT INTO messages (sender_id, receiver_id, encrypted_content, message_type, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    `, [senderId, receiverId, encryptedContent, messageType, timestamp], function(err) {
         if (err) {
             console.error('Database error:', err);
             return res.status(500).json({ error: 'Error sending message' });
@@ -517,22 +466,30 @@ app.put('/api/messages/read/:senderId', authenticateToken, (req, res) => {
     const currentUserId = req.user.userId;
     const senderId = req.params.senderId;
 
-    db.run(`
-        UPDATE messages 
-        SET is_read = 1 
+    db.all(`
+        SELECT id FROM messages 
         WHERE sender_id = ? AND receiver_id = ? AND is_read = 0
-    `, [senderId, currentUserId], function(err) {
+    `, [senderId, currentUserId], (err, rows) => {
         if (err) {
             return res.status(500).json({ error: 'Database error' });
         }
-        
-        // Emit read receipt to sender
-        io.to(`user_${senderId}`).emit('message_read', {
-            readerId: currentUserId,
-            messageCount: this.changes
+        const messageIds = rows.map(row => row.id);
+
+        db.run(`
+            UPDATE messages 
+            SET is_read = 1 
+            WHERE sender_id = ? AND receiver_id = ? AND is_read = 0
+        `, [senderId, currentUserId], function(err) {
+            if (err) {
+                return res.status(500).json({ error: 'Database error' });
+            }
+            // Emit read receipt to sender with message IDs
+            io.to(`user_${senderId}`).emit('message_read', {
+                readerId: currentUserId,
+                messageIds
+            });
+            res.json({ message: 'Messages marked as read', messageIds });
         });
-        
-        res.json({ message: 'Messages marked as read' });
     });
 });
 
@@ -616,190 +573,9 @@ app.post('/api/settings', authenticateToken, (req, res) => {
     res.json({ message: 'Settings saved successfully' });
 });
 
-// Serve uploaded files with CORS headers
-app.use('/uploads', (req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
-    res.header('Access-Control-Allow-Methods', 'GET');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    next();
-}, express.static(uploadsDir));
+// File upload functionality removed
 
-// Public file access endpoint (no authentication required)
-app.get('/files/:filename', (req, res) => {
-    const filename = req.params.filename;
-    const filePath = path.join(uploadsDir, filename);
-    
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'File not found' });
-    }
-    
-    // Serve the file
-    res.sendFile(filePath);
-});
-
-// File upload endpoint
-app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-
-        const { receiverId } = req.body;
-        const senderId = req.user.userId;
-        
-        // Read file data as buffer
-        const fileBuffer = fs.readFileSync(req.file.path);
-        const fileData = fileBuffer.toString('base64'); // Convert to base64 for storage
-        
-        // Determine message type based on file extension
-        const ext = path.extname(req.file.originalname).toLowerCase();
-        let messageType = 'document';
-        
-        // Images
-        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'].includes(ext)) {
-            messageType = 'image';
-        } 
-        // Videos
-        else if (['.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.webm'].includes(ext)) {
-            messageType = 'video';
-        } 
-        // Audio
-        else if (['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'].includes(ext)) {
-            messageType = 'audio';
-        }
-        // Archives
-        else if (['.zip', '.rar', '.7z'].includes(ext)) {
-            messageType = 'archive';
-        }
-        // Code files
-        else if (['.js', '.py', '.java', '.cpp', '.c', '.php', '.sql', '.html', '.css', '.xml', '.json'].includes(ext)) {
-            messageType = 'code';
-        }
-        // Documents (default for PDF, DOC, XLS, PPT, TXT, etc.)
-        else {
-            messageType = 'document';
-        }
-
-        // Create a unique file ID for the message
-        const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const fileUrl = `/api/files/${fileId}`;
-        const timestamp = new Date().toISOString();
-
-        // Encrypt the file URL
-        const encryptedContent = encryptMessage(fileUrl);
-
-        db.run(`
-            INSERT INTO messages (sender_id, receiver_id, encrypted_content, message_type, file_name, file_data, file_mime_type, file_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [senderId, receiverId, encryptedContent, messageType, req.file.originalname, fileData, req.file.mimetype, fileId, timestamp], function(err) {
-            if (err) {
-                console.error('Database error:', err);
-                return res.status(500).json({ error: 'Error saving message' });
-            }
-
-            const messageId = this.lastID;
-            const message = {
-                id: messageId,
-                sender_id: senderId,
-                receiver_id: receiverId,
-                content: fileUrl,
-                message_type: messageType,
-                file_name: req.file.originalname,
-                file_id: fileId,
-                created_at: timestamp,
-                is_read: false
-            };
-
-            // Clean up the temporary file
-            fs.unlinkSync(req.file.path);
-
-            // Emit to connected clients
-            console.log(`📡 Emitting message to users: ${senderId} and ${receiverId}`);
-            console.log(`📨 Message content: ${fileUrl}`);
-            console.log(`🕐 Message timestamp: ${message.created_at}`);
-            
-            // Emit message with delivery confirmation
-            const messageWithDelivery = {
-                ...message,
-                deliveryStatus: 'sent'
-            };
-            
-            io.to(`user_${senderId}`).to(`user_${receiverId}`).emit('new_message', messageWithDelivery);
-            
-            // Emit delivery confirmation to sender
-            io.to(`user_${senderId}`).emit('message_delivered', {
-                messageId: message.id,
-                receiverId: receiverId,
-                deliveredAt: new Date().toISOString()
-            });
-            
-            console.log('✅ Message emitted successfully');
-
-            res.status(201).json({ 
-                message: 'File uploaded successfully', 
-                message: message 
-            });
-        });
-    } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: 'Upload failed' });
-    }
-});
-
-// Serve files from database
-app.get('/api/files/:fileId', authenticateToken, (req, res) => {
-    const fileId = req.params.fileId;
-    
-    db.get('SELECT file_data, file_mime_type, file_name FROM messages WHERE file_id = ?', [fileId], (err, row) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
-        
-        if (!row) {
-            return res.status(404).json({ error: 'File not found' });
-        }
-        
-        try {
-            // Convert base64 back to buffer
-            const fileBuffer = Buffer.from(row.file_data, 'base64');
-            
-            // Set appropriate headers with CORS
-            res.setHeader('Content-Type', row.file_mime_type);
-            res.setHeader('Content-Disposition', `inline; filename="${row.file_name}"`);
-            res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-            res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-            res.setHeader('Access-Control-Allow-Credentials', 'true');
-            
-            // Send the file
-            res.send(fileBuffer);
-        } catch (error) {
-            console.error('Error serving file:', error);
-            res.status(500).json({ error: 'Error serving file' });
-        }
-    });
-});
-
-// Handle preflight requests for file serving
-app.options('/api/files/:fileId', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.status(200).end();
-});
-
-// Error handling for multer
-app.use((error, req, res, next) => {
-    if (error instanceof multer.MulterError) {
-        if (error.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
-        }
-    }
-    res.status(400).json({ error: error.message });
-});
+// File serving functionality removed
 
 // Socket.IO connection handling
 io.use((socket, next) => {
@@ -872,63 +648,18 @@ process.on('SIGINT', () => {
     });
 });
 
-// Serve old uploads files (fallback for files not in database)
-app.get('/uploads/:filename', (req, res) => {
-    const filename = req.params.filename;
-    const filePath = path.join(uploadsDir, filename);
-    
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'File not found' });
-    }
-    
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    // Serve the file
-    res.sendFile(filePath);
-});
-
-// Handle preflight requests for old uploads
-app.options('/uploads/:filename', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.status(200).end();
-});
-
-// Delete message (for me or for everyone)
+// Delete message (for me only)
 app.delete('/api/messages/:messageId', authenticateToken, (req, res) => {
     const messageId = parseInt(req.params.messageId, 10);
     const userId = req.user.userId;
-    const scope = req.query.scope || 'me'; // 'me' or 'everyone'
 
-    if (scope === 'everyone') {
-        // Only allow sender to delete for everyone
-        db.get('SELECT sender_id FROM messages WHERE id = ?', [messageId], (err, row) => {
-            if (err || !row) return res.status(404).json({ error: 'Message not found' });
-            if (row.sender_id !== userId) return res.status(403).json({ error: 'Not allowed' });
-
-            db.run('UPDATE messages SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [messageId], function(err) {
-                if (err) return res.status(500).json({ error: 'Database error' });
-                // Emit to all participants
-                io.emit('message_deleted', { messageId, scope: 'everyone' });
-                res.json({ message: 'Message deleted for everyone' });
-            });
-        });
-    } else {
-        // Delete for me: add to hidden_messages
-        db.run('INSERT OR IGNORE INTO hidden_messages (user_id, message_id) VALUES (?, ?)', [userId, messageId], function(err) {
-            if (err) return res.status(500).json({ error: 'Database error' });
-            // Emit only to this user (optional)
-            io.to(`user_${userId}`).emit('message_deleted', { messageId, scope: 'me' });
-            res.json({ message: 'Message deleted for you' });
-        });
-    }
+    // Delete for me: add to hidden_messages
+    db.run('INSERT OR IGNORE INTO hidden_messages (user_id, message_id) VALUES (?, ?)', [userId, messageId], function(err) {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        // Emit only to this user
+        io.to(`user_${userId}`).emit('message_deleted', { messageId, scope: 'me' });
+        res.json({ message: 'Message deleted for you' });
+    });
 });
 
 // Update message fetch to exclude hidden messages for the current user
@@ -949,23 +680,12 @@ app.get('/api/messages/:userId', authenticateToken, (req, res) => {
             return res.status(500).json({ error: 'Database error' });
         }
 
-        // Decrypt messages and add file_name if it exists
+        // Decrypt messages
         const decryptedMessages = messages.map(msg => {
-            const decryptedMsg = {
+            return {
                 ...msg,
                 content: decryptMessage(msg.encrypted_content)
             };
-            
-            // For file messages, try to extract file name from content if not already present
-            if (msg.message_type !== 'text' && !decryptedMsg.file_name) {
-                // Extract filename from the URL path
-                const urlParts = decryptedMsg.content.split('/');
-                if (urlParts.length > 0) {
-                    decryptedMsg.file_name = urlParts[urlParts.length - 1];
-                }
-            }
-            
-            return decryptedMsg;
         });
 
         res.json({ messages: decryptedMessages });

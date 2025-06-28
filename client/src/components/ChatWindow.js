@@ -11,26 +11,15 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
-  Modal,
-  Button,
   Menu,
   MenuItem
 } from '@mui/material';
 import {
   Send,
-  AttachFile,
   EmojiEmotions,
   MoreVert,
   VideoCall,
-  Phone,
-  Image,
-  VideoFile,
-  AudioFile,
-  Description,
-  Close,
-  Download,
-  Archive,
-  Code
+  Phone
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useSocket } from '../context/SocketContext';
@@ -41,13 +30,9 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [pendingMessages, setPendingMessages] = useState(new Set()); // Track pending messages
   const [emojiPickerAnchor, setEmojiPickerAnchor] = useState(null);
   const [error, setError] = useState('');
-  const [imagePreview, setImagePreview] = useState(null);
   const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
   const { socket, isConnected } = useSocket();
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuMessageId, setMenuMessageId] = useState(null);
@@ -86,55 +71,38 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
       return;
     }
 
-    console.log('Setting up message listener for contact:', selectedContact?.username);
+    console.log('Setting up message listener');
+    console.log('Socket connected:', socket.connected);
+    console.log('Current selectedContact:', selectedContact?.id);
 
     const handleNewMessage = (message) => {
-      console.log('📨 Received new message:', message);
+      console.log('Received new message:', message);
+      console.log('Current selectedContact:', selectedContact?.id);
+      console.log('Message sender_id:', message.sender_id);
+      console.log('Message receiver_id:', message.receiver_id);
+      console.log('Current user ID:', currentUser?.id);
       
-      // Only add message if it's from the current conversation
-      if (message.sender_id === selectedContact?.id || 
-          message.receiver_id === selectedContact?.id) {
-        console.log('✅ Adding message to current conversation');
+      // Check if message is for the current conversation
+      // A message is for the current conversation if it involves both the current user and the selected contact
+      const isForCurrentConversation = (
+        (message.sender_id === currentUser?.id && message.receiver_id === selectedContact?.id) ||
+        (message.sender_id === selectedContact?.id && message.receiver_id === currentUser?.id)
+      );
+      
+      if (isForCurrentConversation) {
+        console.log('Adding message to current conversation');
         setMessages(prev => {
-          // Check if we have a pending message with the same content from the same sender
-          const pendingMessage = prev.find(m => 
-            m.isPending && 
-            m.content === message.content &&
-            m.sender_id === message.sender_id &&
-            m.receiver_id === message.receiver_id
-          );
-
-          if (pendingMessage) {
-            console.log('🔄 Replacing pending message with real message');
-            console.log('Pending message:', pendingMessage);
-            console.log('Real message:', message);
-            // Replace the pending message with the real one
-            const updatedMessages = prev.map(m => 
-              m.id === pendingMessage.id ? { ...message, isPending: false } : m
-            );
-            // Sort the messages after replacement
-            return updatedMessages.sort((a, b) => {
-              try {
-                const dateA = new Date(a.created_at);
-                const dateB = new Date(b.created_at);
-                return dateA.getTime() - dateB.getTime();
-              } catch (error) {
-                return 0;
-              }
-            });
-          }
-
           // Check if message already exists to avoid duplicates
           const exists = prev.some(m => 
-            !m.isPending && 
-            m.content === message.content &&
-            m.sender_id === message.sender_id &&
-            m.receiver_id === message.receiver_id &&
-            Math.abs(new Date(m.created_at) - new Date(message.created_at)) < 5000
+            m.id === message.id ||
+            (m.content === message.content &&
+             m.sender_id === message.sender_id &&
+             m.receiver_id === message.receiver_id &&
+             Math.abs(new Date(m.created_at) - new Date(message.created_at)) < 5000)
           );
           
           if (!exists) {
-            console.log('📝 Adding new message to state');
+            console.log('Adding new message to state');
             // Add the new message and sort
             const newMessages = [...prev, message];
             return newMessages.sort((a, b) => {
@@ -147,17 +115,17 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
               }
             });
           } else {
-            console.log('⚠️ Message already exists, skipping');
+            console.log('Message already exists, skipping');
             return prev;
           }
         });
       } else {
-        console.log('❌ Message not for current conversation');
+        console.log('Message not for current conversation');
       }
     };
 
     const handleMessageDelivered = (deliveryInfo) => {
-      console.log('📬 Message delivered:', deliveryInfo);
+      console.log('Message delivered:', deliveryInfo);
       setMessages(prev => 
         prev.map(m => 
           m.isPending && m.content === deliveryInfo.content 
@@ -168,10 +136,10 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
     };
 
     const handleMessageRead = (readInfo) => {
-      console.log('👁️ Message read:', readInfo);
-      setMessages(prev => 
-        prev.map(m => 
-          m.id === readInfo.messageId 
+      console.log('Message read:', readInfo);
+      setMessages(prev =>
+        prev.map(m =>
+          readInfo.messageIds?.includes(m.id)
             ? { ...m, isRead: true }
             : m
         )
@@ -188,45 +156,15 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
       socket.off('message_delivered', handleMessageDelivered);
       socket.off('message_read', handleMessageRead);
     };
-  }, [socket, selectedContact]);
+  }, [socket, selectedContact?.id, currentUser?.id]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedContact) return;
 
-    console.log('🚀 Sending message to:', selectedContact.username);
-    console.log('📝 Message content:', newMessage);
+    console.log('Sending message to:', selectedContact.username);
+    console.log('Message content:', newMessage);
 
     setSending(true);
-    
-    // Create a temporary message for immediate display
-    const tempMessage = {
-      id: `temp_${Date.now()}`,
-      sender_id: currentUser.id,
-      receiver_id: selectedContact.id,
-      content: newMessage,
-      message_type: 'text',
-      created_at: new Date().toISOString(),
-      is_read: false,
-      isPending: true
-    };
-
-    // Add temporary message to state
-    setMessages(prev => {
-      const newMessages = [...prev, tempMessage];
-      return newMessages.sort((a, b) => {
-        try {
-          const dateA = new Date(a.created_at);
-          const dateB = new Date(b.created_at);
-          return dateA.getTime() - dateB.getTime();
-        } catch (error) {
-          return 0;
-        }
-      });
-    });
-    
-    // Track this message as pending
-    setPendingMessages(prev => new Set(prev).add(tempMessage.id));
-    
     const messageToSend = newMessage;
     setNewMessage('');
 
@@ -238,32 +176,17 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
         messageType: 'text'
       };
       
-      console.log('📤 Sending message data:', messageData);
+      console.log('Sending message data:', messageData);
       
       const response = await axios.post('/api/messages', messageData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      console.log('✅ Message sent successfully:', response.data);
-
-      // Remove from pending messages
-      setPendingMessages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(tempMessage.id);
-        return newSet;
-      });
+      console.log('Message sent successfully:', response.data);
 
     } catch (error) {
-      console.error('❌ Error sending message:', error);
-      console.error('❌ Error response:', error.response?.data);
-      
-      // Remove the temporary message on error
-      setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
-      setPendingMessages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(tempMessage.id);
-        return newSet;
-      });
+      console.error('Error sending message:', error);
+      console.error('Error response:', error.response?.data);
     } finally {
       setSending(false);
     }
@@ -307,7 +230,7 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
           if (message.isPending) {
             const messageTime = new Date(message.created_at).getTime();
             if (now - messageTime > 10000) { // 10 seconds
-              console.log('⏰ Removing stale pending message:', message.content);
+              console.log('Removing stale pending message:', message.content);
               return null; // Remove this message
             }
           }
@@ -315,7 +238,7 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
         }).filter(Boolean); // Remove null messages
         
         if (updatedMessages.length !== prev.length) {
-          console.log('🧹 Cleaned up stale pending messages');
+          console.log('Cleaned up stale pending messages');
         }
         
         return updatedMessages;
@@ -363,155 +286,6 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
     setEmojiPickerAnchor(null);
   };
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file || !selectedContact) return;
-
-    console.log('📎 Uploading file:', file.name, 'Size:', file.size);
-
-    // Check file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File too large. Maximum size is 10MB.');
-      return;
-    }
-
-    setUploading(true);
-    
-    // Create a temporary message for immediate display
-    const tempMessage = {
-      id: `temp_${Date.now()}`,
-      sender_id: currentUser.id,
-      receiver_id: selectedContact.id,
-      content: `Uploading ${file.name}...`,
-      message_type: getMessageType(file.name),
-      file_name: file.name,
-      created_at: new Date().toISOString(),
-      is_read: false,
-      isPending: true
-    };
-
-    // Add temporary message to state
-    setMessages(prev => {
-      const newMessages = [...prev, tempMessage];
-      return newMessages.sort((a, b) => {
-        try {
-          const dateA = new Date(a.created_at);
-          const dateB = new Date(b.created_at);
-          return dateA.getTime() - dateB.getTime();
-        } catch (error) {
-          return 0;
-        }
-      });
-    });
-    
-    // Track this message as pending
-    setPendingMessages(prev => new Set(prev).add(tempMessage.id));
-
-    try {
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('receiverId', selectedContact.id);
-
-      console.log('📤 Uploading file to server...');
-      
-      const response = await axios.post('/api/upload', formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      console.log('✅ File uploaded successfully:', response.data);
-
-      // Remove from pending messages
-      setPendingMessages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(tempMessage.id);
-        return newSet;
-      });
-
-    } catch (error) {
-      console.error('❌ File upload failed:', error);
-      setError(error.response?.data?.error || 'Failed to upload file');
-      
-      // Remove the temporary message on error
-      setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
-      
-      // Remove from pending messages
-      setPendingMessages(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(tempMessage.id);
-        return newSet;
-      });
-    } finally {
-      setUploading(false);
-      // Clear the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const getMessageType = (fileName) => {
-    const ext = fileName.toLowerCase().split('.').pop();
-    
-    // Images
-    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) {
-      return 'image';
-    } 
-    // Videos
-    else if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'].includes(ext)) {
-      return 'video';
-    } 
-    // Audio
-    else if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext)) {
-      return 'audio';
-    }
-    // Archives
-    else if (['zip', 'rar', '7z'].includes(ext)) {
-      return 'archive';
-    }
-    // Code files
-    else if (['js', 'py', 'java', 'cpp', 'c', 'php', 'sql', 'html', 'css', 'xml', 'json'].includes(ext)) {
-      return 'code';
-    }
-    // Documents (default for PDF, DOC, XLS, PPT, TXT, etc.)
-    else {
-      return 'document';
-    }
-  };
-
-  const getFileIcon = (messageType) => {
-    switch (messageType) {
-      case 'image':
-        return <Image />;
-      case 'video':
-        return <VideoFile />;
-      case 'audio':
-        return <AudioFile />;
-      case 'archive':
-        return <Archive />;
-      case 'code':
-        return <Code />;
-      case 'document':
-        return <Description />;
-      default:
-        return <Description />;
-    }
-  };
-
-  const getFileUrl = (content, type) => {
-    if (type === 'image') {
-      return content;
-    } else if (type === 'video') {
-      return content;
-    } else if (type === 'audio') {
-      return content;
-    }
-    return content;
-  };
-
   const renderMessageContent = (message) => {
     if (message.is_deleted) {
       return (
@@ -520,217 +294,31 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
         </Typography>
       );
     }
-    if (message.message_type === 'text') {
-      return (
-        <Typography variant="body1">
-          {message.content}
-          {message.isPending && (
-            <Typography 
-              component="span" 
-              variant="caption" 
-              sx={{ ml: 1, opacity: 0.8 }}
-            >
-              (sending...)
-            </Typography>
-          )}
-        </Typography>
-      );
-    } else {
-      // Handle file attachments
-      const isImage = message.message_type === 'image';
-      const isVideo = message.message_type === 'video';
-      const isAudio = message.message_type === 'audio';
-      
-      // Construct proper file URL
-      const fileUrl = getFileUrl(message.content, message.message_type);
-      
-      return (
-        <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            {getFileIcon(message.message_type)}
-            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-              {message.file_name || 'Attachment'}
-            </Typography>
-          </Box>
-          
-          {isImage && (
-            <Box sx={{ width: '5rem', height: '5rem', borderRadius: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <img 
-                src={fileUrl} 
-                alt={message.file_name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                onClick={() => handleImageClick(message)}
-                onError={(e) => {
-                  console.log('Image failed to load:', fileUrl);
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
-              />
-              <Typography 
-                variant="caption" 
-                sx={{ display: 'none', color: 'text.secondary', textAlign: 'center' }}
-              >
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="caption">Image failed to load</Typography>
-                  <Button 
-                    size="small" 
-                    variant="outlined"
-                    onClick={() => handleDownload(fileUrl, message.file_name)}
-                  >
-                    Download Instead
-                  </Button>
-                </Box>
-              </Typography>
-            </Box>
-          )}
-          
-          {isVideo && (
-            <Box sx={{ maxWidth: '100%' }}>
-              <video 
-                controls 
-                style={{ maxWidth: '100%', height: 'auto' }}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
-              >
-                <source src={fileUrl} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-              <Typography 
-                variant="caption" 
-                sx={{ display: 'none', color: 'text.secondary' }}
-              >
-                Video failed to load
-              </Typography>
-            </Box>
-          )}
-          
-          {isAudio && (
-            <Box sx={{ maxWidth: '100%' }}>
-              <audio 
-                controls 
-                style={{ width: '100%' }}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
-              >
-                <source src={fileUrl} type="audio/mpeg" />
-                Your browser does not support the audio tag.
-              </audio>
-              <Typography 
-                variant="caption" 
-                sx={{ display: 'none', color: 'text.secondary' }}
-              >
-                Audio failed to load
-              </Typography>
-            </Box>
-          )}
-          
-          {!isImage && !isVideo && !isAudio && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Description />
-              <Typography variant="body2">
-                <a 
-                  href={fileUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{ color: 'inherit', textDecoration: 'none' }}
-                >
-                  Download {message.file_name || 'Document'}
-                </a>
-              </Typography>
-            </Box>
-          )}
-          
-          {message.isPending && (
-            <Typography 
-              component="span" 
-              variant="caption" 
-              sx={{ ml: 1, opacity: 0.8 }}
-            >
-              (uploading...)
-            </Typography>
-          )}
-        </Box>
-      );
-    }
-  };
-
-  const handleImageClick = (message) => {
-    let imageUrl = message.content;
-    
-    if (imageUrl.startsWith('/uploads/')) {
-      // Old uploads format - ensure it goes to the server port
-      imageUrl = imageUrl;
-    } else if (imageUrl.startsWith('/api/files/')) {
-      // New API format - ensure it goes to the server port
-      imageUrl = imageUrl;
-    } else if (!imageUrl.startsWith('http')) {
-      // Any other relative URL
-      imageUrl = imageUrl;
-    }
-    
-    setImagePreview({
-      src: imageUrl,
-      filename: message.file_name || 'image'
-    });
-  };
-
-  const handleDownload = async (url, filename) => {
-    try {
-      // Get the auth token for the request
-      const token = localStorage.getItem('token');
-      
-      // Determine if this is an old uploads URL or new API URL
-      const isOldUploadsUrl = url.includes('/uploads/');
-      
-      const headers = {};
-      if (!isOldUploadsUrl) {
-        // Only add auth header for new API endpoints
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      // Fetch the image as a blob
-      const response = await fetch(url, {
-        headers: headers
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      
-      // Create a blob URL and download
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up the blob URL
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error('Download failed:', error);
-      setError('Failed to download image');
-    }
+    return (
+      <Typography variant="body1">
+        {message.content}
+        {message.isPending && (
+          <Typography 
+            component="span" 
+            variant="caption" 
+            sx={{ ml: 1, opacity: 0.8 }}
+          >
+            (sending...)
+          </Typography>
+        )}
+      </Typography>
+    );
   };
 
   // Delete message handler
-  const handleDeleteMessage = async (messageId, scope = 'me') => {
+  const handleDeleteMessage = async (messageId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/messages/${messageId}?scope=${scope}`, {
+      await axios.delete(`/api/messages/${messageId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       // Optimistically update UI (Socket.IO will also update)
-      if (scope === 'me') {
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-      }
+      setMessages(prev => prev.filter(m => m.id !== messageId));
     } catch (error) {
       setError('Failed to delete message');
     }
@@ -741,12 +329,8 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
   // Listen for message_deleted event
   useEffect(() => {
     if (!socket) return;
-    const handleMessageDeleted = ({ messageId, scope }) => {
-      if (scope === 'everyone') {
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_deleted: 1 } : m));
-      } else if (scope === 'me') {
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-      }
+    const handleMessageDeleted = ({ messageId }) => {
+      setMessages(prev => prev.filter(m => m.id !== messageId));
     };
     socket.on('message_deleted', handleMessageDeleted);
     return () => socket.off('message_deleted', handleMessageDeleted);
@@ -914,10 +498,7 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
               open={Boolean(anchorEl)}
               onClose={() => { setAnchorEl(null); setMenuMessageId(null); }}
             >
-              <MenuItem onClick={() => handleDeleteMessage(menuMessageId, 'me')}>Delete for Me</MenuItem>
-              {messages.find(m => m.id === menuMessageId)?.sender_id === currentUser?.id && (
-                <MenuItem onClick={() => handleDeleteMessage(menuMessageId, 'everyone')}>Delete for Everyone</MenuItem>
-              )}
+              <MenuItem onClick={() => handleDeleteMessage(menuMessageId)}>Delete for Me</MenuItem>
             </Menu>
             <div ref={messagesEndRef} />
           </List>
@@ -934,20 +515,6 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
         }}
       >
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            onChange={handleFileUpload}
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.csv,.zip,.rar,.7z,.js,.py,.java,.cpp,.c,.php,.sql,.html,.css,.xml,.json,.md,.log,.ini,.conf,.sh,.bat,.ps1,.exe,.dmg,.deb,.rpm,.apk,.ipa"
-          />
-          <IconButton 
-            size="small" 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-          >
-            {uploading ? <CircularProgress size={20} /> : <AttachFile />}
-          </IconButton>
           <IconButton 
             size="small" 
             onClick={handleEmojiClick}
@@ -963,13 +530,13 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={sending || uploading}
+            disabled={sending}
             sx={{ mx: 1 }}
           />
           <IconButton
             color="primary"
             onClick={sendMessage}
-            disabled={(!newMessage.trim() && !uploading) || sending || uploading}
+            disabled={!newMessage.trim() || sending}
           >
             {sending ? <CircularProgress size={20} /> : <Send />}
           </IconButton>
@@ -982,90 +549,6 @@ const ChatWindow = ({ selectedContact, currentUser }) => {
           onEmojiSelect={handleEmojiSelect}
         />
       </Paper>
-
-      {/* Image Preview Modal */}
-      <Modal
-        open={!!imagePreview}
-        onClose={() => setImagePreview(null)}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: 2
-        }}
-      >
-        <Box
-          sx={{
-            position: 'relative',
-            maxWidth: '90vw',
-            maxHeight: '90vh',
-            bgcolor: 'background.paper',
-            borderRadius: 2,
-            boxShadow: 24,
-            p: 2
-          }}
-        >
-          {/* Close Button */}
-          <IconButton
-            onClick={() => setImagePreview(null)}
-            sx={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              bgcolor: 'rgba(0,0,0,0.5)',
-              color: 'white',
-              zIndex: 1,
-              '&:hover': {
-                bgcolor: 'rgba(0,0,0,0.7)'
-              }
-            }}
-          >
-            <Close />
-          </IconButton>
-
-          {/* Download Button */}
-          <IconButton
-            onClick={() => handleDownload(imagePreview?.src, imagePreview?.filename)}
-            sx={{
-              position: 'absolute',
-              top: 8,
-              left: 8,
-              bgcolor: 'rgba(0,0,0,0.5)',
-              color: 'white',
-              zIndex: 1,
-              '&:hover': {
-                bgcolor: 'rgba(0,0,0,0.7)'
-              }
-            }}
-          >
-            <Download />
-          </IconButton>
-
-          {/* Image */}
-          <img
-            src={imagePreview?.src}
-            alt={imagePreview?.filename}
-            style={{
-              maxWidth: '100%',
-              maxHeight: '80vh',
-              display: 'block',
-              borderRadius: 1
-            }}
-          />
-
-          {/* Filename */}
-          <Typography
-            variant="body2"
-            sx={{
-              mt: 1,
-              textAlign: 'center',
-              color: 'text.secondary'
-            }}
-          >
-            {imagePreview?.filename}
-          </Typography>
-        </Box>
-      </Modal>
 
       {/* Error Snackbar */}
       <Snackbar
