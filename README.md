@@ -1,4 +1,4 @@
-# 🚀 SecureChat - WhatsApp/Telegram Clone
+# SecureChat - WhatsApp/Telegram Clone
 
 A comprehensive, feature-rich messaging application that replicates the core functionality of WhatsApp and Telegram with enhanced security features.
 
@@ -29,7 +29,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Message Editing**: Edit sent messages
 - **Message Deletion**: Delete messages with auto-delete options
 
-### 👥 **Chat Types**
+### **Chat Types**
 
 - **Direct Messages**: One-on-one conversations
 - **Group Chats**: Multi-user conversations (up to 256 members)
@@ -37,7 +37,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Private Groups**: Invite-only group chats
 - **Public Channels**: Discoverable channels
 
-### 📱 **User Interface**
+### **User Interface**
 
 - **Modern Design**: Clean, responsive UI inspired by WhatsApp/Telegram
 - **Dark Mode**: Toggle between light and dark themes
@@ -45,7 +45,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Search Functionality**: Search contacts, groups, and messages
 - **Responsive Design**: Works on desktop, tablet, and mobile
 
-### 📸 **Stories & Status**
+### **Stories & Status**
 
 - **Story Creation**: Create text, image, and video stories
 - **Story Viewing**: View stories from contacts
@@ -53,14 +53,14 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Custom Backgrounds**: Colorful story backgrounds
 - **Story Reactions**: React to stories
 
-### 📞 **Voice & Video Calls**
+### **Voice & Video Calls**
 
 - **Voice Calls**: Make and receive voice calls
 - **Video Calls**: High-quality video calling
 - **Call History**: Track call history and duration
 - **Call Status**: Missed, answered, ended call tracking
 
-### 📎 **File Sharing**
+### **File Sharing**
 
 - **Image Sharing**: Share photos with preview
 - **Video Sharing**: Share videos with thumbnails
@@ -70,7 +70,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Contact Sharing**: Share contact information
 - **Sticker Support**: Send and receive stickers
 
-### 👤 **User Profiles**
+### **User Profiles**
 
 - **Profile Management**: Edit profile information
 - **Avatar Support**: Custom profile pictures
@@ -78,7 +78,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Online Status**: Real-time online/offline indicators
 - **Last Seen**: Track when users were last active
 
-### ⚙️ **Settings & Customization**
+### **Settings & Customization**
 
 - **Notification Settings**: Customize notification preferences
 - **Privacy Settings**: Control message previews and read receipts
@@ -86,7 +86,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Theme Customization**: Choose between light and dark themes
 - **Language Support**: Multi-language interface ready
 
-### 🔍 **Advanced Features**
+### **Advanced Features**
 
 - **Message Search**: Search through message history
 - **Contact Management**: Add, remove, and block contacts
@@ -95,7 +95,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Admin Controls**: Group and channel administration
 - **Message Encryption**: Military-grade message encryption
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Backend
 
@@ -125,7 +125,7 @@ A comprehensive, feature-rich messaging application that replicates the core fun
 - **Rate Limiting**: API protection
 - **CORS**: Cross-origin resource sharing
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -225,7 +225,7 @@ The database comes with sample users configured via environment variables:
 
 **To disable sample data:** Set `CREATE_SAMPLE_DATA=false` in your `.env` file.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 messagingapp/
@@ -244,7 +244,7 @@ messagingapp/
 └── README.md             # This file
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -298,7 +298,7 @@ The app uses SQLite by default. The database file is created automatically in th
 
 See `env.example` for complete configuration examples.
 
-## 📱 Usage Guide
+## Usage Guide
 
 ### Getting Started
 
@@ -331,7 +331,7 @@ See `env.example` for complete configuration examples.
 - **Notifications**: Customize notification preferences
 - **Security**: Manage privacy and security settings
 
-## 🔒 Security Features
+## Security Features
 
 ### Message Encryption
 
@@ -352,7 +352,7 @@ See `env.example` for complete configuration examples.
 - User sessions with automatic expiration
 - Configurable privacy settings
 
-## 🚀 Deployment
+## Deployment
 
 ### Production Setup
 
@@ -372,7 +372,7 @@ docker build -t securechat .
 docker run -p 3002:3002 securechat
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -380,11 +380,8 @@ docker run -p 3002:3002 securechat
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
+## Support
 
 If you encounter any issues or have questions:
 
@@ -392,7 +389,7 @@ If you encounter any issues or have questions:
 2. Create a new issue with detailed information
 3. Contact the development team
 
-## 🔮 Roadmap
+## Roadmap
 
 ### Upcoming Features
 
@@ -416,7 +413,7 @@ If you encounter any issues or have questions:
 - [ ] **CDN Integration**: Content delivery network
 - [ ] **Database Optimization**: Query optimization and indexing
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **WhatsApp** for inspiration on messaging features
 - **Telegram** for channel and group concepts
@@ -424,6 +421,3 @@ If you encounter any issues or have questions:
 - **Font Awesome** for beautiful icons
 
 ---
-
-
-_This project is for educational purposes and demonstrates modern web development practices with a focus on security and user experience._
